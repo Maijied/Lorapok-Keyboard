@@ -495,10 +495,23 @@ class LorapokKeyboardService : InputMethodService() {
 
     private fun applySuggestion(word: String) {
         val ic = currentInputConnection ?: return
+        if (phoneticBuffer.isNotEmpty()) {
+            ic.finishComposingText()
+            phoneticBuffer.clear()
+        }
         ic.commitText("$word ", 1)
-        phoneticBuffer.clear()
         userLearning.recordWord(word)
-        updateSuggestions(predictionEngine.predict(word))
+        
+        if (isBengaliMode) {
+            updateSuggestions(predictionEngine.predict(word))
+        } else {
+            val englishPredictions = englishPredictionEngine.predictNext(word)
+            if (englishPredictions.isNotEmpty()) {
+                updateSuggestions(englishPredictions)
+            } else {
+                showDefaultSuggestions()
+            }
+        }
     }
 
     private fun toggleLanguage() { isBengaliMode = !isBengaliMode; phoneticBuffer.clear(); buildKeyboard() }

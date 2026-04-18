@@ -20,18 +20,42 @@ class PhoneticEngine(context: Context) {
     private val vowelSigns: Map<String, String>
     private val consonants: Map<String, String>
     private val conjuncts: List<Pair<String, String>>
+    private val dictionaryTrie = Trie()
 
     init {
         val json = loadJsonFromAssets(context, "avro_phonetic_rules.json")
         vowels = parseSection(json, "vowels")
         vowelSigns = parseSection(json, "vowelSigns")
         consonants = parseSection(json, "consonants")
-        commonWords = parseSection(json, "commonWords")
         
         val conjunctMap = parseSection(json, "conjuncts")
         conjuncts = conjunctMap.entries
             .sortedByDescending { it.key.length }
             .map { it.key to it.value }
+
+        loadDictionary(context)
+    }
+
+    private fun loadDictionary(context: Context) {
+        try {
+            val stream = context.assets.open("bengali_dictionary.json")
+            val reader = InputStreamReader(stream, Charsets.UTF_8)
+            val content = reader.readText()
+            reader.close()
+
+            val json = JSONObject(content)
+            val keys = json.keys()
+            while (keys.hasNext()) {
+                val latin = keys.next()
+                val bengaliObj = json.getJSONObject(latin)
+                val bengaliKeys = bengaliObj.keys()
+                if (bengaliKeys.hasNext()) {
+                    val bengaliWord = bengaliKeys.next()
+                    val freq = bengaliObj.getInt(bengaliWord)
+                    dictionaryTrie.insert(latin.lowercase(), bengaliWord, freq)
+                }
+            }
+        } catch (e: Exception) {}
     }
 
     /**
@@ -41,21 +65,32 @@ class PhoneticEngine(context: Context) {
         val lower = input.lowercase()
         val candidates = mutableSetOf<String>()
 
-        // 1. Exact dictionary match (highest priority)
-        if (commonWords.containsKey(lower)) {
-            candidates.add(commonWords[lower]!!)
+        // 1. Lexicon Dictionary match (highest priority, using Trie)
+        val dictMatches = dictionaryTrie.autocomplete(lower, 3)
+        // If the exact typed string matches a prefix perfectly, we add those bengali words
+        // Wait, for 'convert', we only want exact matches of the buffer if possible, or prefix matches.
+        // Gboard shows exactly matched conversions first.
+        val exactMatch = dictionaryTrie.search(lower)
+        if (exactMatch != null) {
+            candidates.add(exactMatch as String)
         }
 
         // 2. Generate transliterations
         // We generate two paths: one strict Avro (a=""), one Gboard style (a="া")
-        val strictAvro = generateTransliteration(lower, treatSingleAAsAa = false)
-        if (strictAvro.isNotEmpty()) candidates.add(strictAvro)
-
         val gboardStyle = generateTransliteration(lower, treatSingleAAsAa = true)
         if (gboardStyle.isNotEmpty()) candidates.add(gboardStyle)
 
+        val strictAvro = generateTransliteration(lower, treatSingleAAsAa = false)
+        if (strictAvro.isNotEmpty()) candidates.add(strictAvro)
+
+        // 3. Add autocomplete prefix predictions if typing is incomplete
+        for (match in dictMatches) {
+            candidates.add(match.second as String)
+        }
+
         return candidates.toList()
     }
+
 
     private fun generateTransliteration(lower: String, treatSingleAAsAa: Boolean): String {
         val result = StringBuilder()
@@ -123,7 +158,7 @@ class PhoneticEngine(context: Context) {
 
     fun isComplete(buffer: String): Boolean {
         val lower = buffer.lowercase()
-        if (commonWords.containsKey(lower)) return true
+        if (dictionaryTrie.search(lower) != null) return true
         
         val hasLongerRule = conjuncts.any { it.first.startsWith(lower) && it.first.length > lower.length } ||
                 consonants.keys.any { it.startsWith(lower) && it.length > lower.length } ||
@@ -131,6 +166,7 @@ class PhoneticEngine(context: Context) {
         
         return !hasLongerRule
     }
+
 
     private fun loadJsonFromAssets(context: Context, filename: String): JSONObject {
         return try {

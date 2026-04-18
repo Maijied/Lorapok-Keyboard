@@ -1,27 +1,43 @@
 package com.lorapok.keyboard
 
+import android.content.Context
+import org.json.JSONObject
+import java.io.InputStreamReader
+
 /**
  * Lorapok Keuboard — English Prediction Engine
  *
- * Provides professional auto-complete and next-word prediction for English.
+ * Uses data-driven dictionaries via a Trie for high-performance predictions.
  */
-class EnglishPredictionEngine {
+class EnglishPredictionEngine(context: Context) {
 
-    private val commonWords = listOf(
-        "the", "be", "to", "of", "and", "a", "in", "that", "have", "I",
-        "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
-        "this", "but", "his", "by", "from", "they", "we", "say", "her", "she",
-        "or", "an", "will", "my", "one", "all", "would", "there", "their", "what",
-        "so", "up", "out", "if", "about", "who", "get", "which", "go", "me",
-        "when", "make", "can", "like", "time", "no", "just", "him", "know", "take",
-        "people", "into", "year", "your", "good", "some", "could", "them", "see", "other",
-        "than", "then", "now", "look", "only", "come", "its", "over", "think", "also",
-        "back", "after", "use", "two", "how", "our", "work", "first", "well", "way",
-        "even", "new", "want", "because", "any", "these", "give", "day", "most", "us",
-        "are", "is", "was", "were", "been", "has", "had", "doing", "does", "did",
-        "hello", "hi", "thanks", "thank", "sorry", "yes", "please", "maybe", "always",
-        "never", "today", "tomorrow", "yesterday", "morning", "night", "love", "great"
-    )
+    private val dictionaryTrie = Trie()
+
+    init {
+        loadDictionary(context)
+    }
+
+    private fun loadDictionary(context: Context) {
+        try {
+            val stream = context.assets.open("english_dictionary.json")
+            val reader = InputStreamReader(stream, Charsets.UTF_8)
+            val content = reader.readText()
+            reader.close()
+
+            val json = JSONObject(content)
+            val keys = json.keys()
+            while (keys.hasNext()) {
+                val word = keys.next()
+                val freq = json.getInt(word)
+                dictionaryTrie.insert(word.lowercase(), word, freq)
+            }
+        } catch (e: Exception) {
+            // Fallback if asset is missing
+            val defaults = listOf("the", "be", "to", "of", "and", "a", "in")
+            defaults.forEachIndexed { i, w -> dictionaryTrie.insert(w, w, 100 - i) }
+        }
+    }
+
 
     private val bigramMap = mapOf(
         "I" to listOf("am", "will", "have", "think", "don't", "can"),
