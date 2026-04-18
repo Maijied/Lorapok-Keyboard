@@ -347,10 +347,8 @@ class LorapokKeyboardService : InputMethodService() {
     }
 
     private fun playClickSound() {
-        // Simple key click sound using standard Android method
-        val ic = currentInputConnection ?: return
-        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_MUTE))
-        // Note: Real key clicks use AudioManager.playSoundEffect
+        val am = getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+        am?.playSoundEffect(android.media.AudioManager.FX_KEYPRESS_STANDARD)
     }
 
     private fun handleSpace() {
