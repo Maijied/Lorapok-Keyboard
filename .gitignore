@@ -1,0 +1,25 @@
+# Android
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+*.ap_
+*.apk
+*.dex
+bin/
+gen/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+scratch/
+artifacts/

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="com.lorapok.keyboard.MainActivity"
+    android:supportsSwitchingToNextInputMethod="true">
+    <subtype
+        android:label="Bengali (বাংলা)"
+        android:imeSubtypeLocale="bn"
+        android:imeSubtypeMode="keyboard" />
+    <subtype
+        android:label="English"
+        android:imeSubtypeLocale="en"
+        android:imeSubtypeMode="keyboard" />
+</input-method>
