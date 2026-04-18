@@ -35,12 +35,29 @@ class PhoneticEngine(context: Context) {
     }
 
     /**
-     * Convert Latin input to Bengali.
+     * Convert Latin input to Bengali, returning a list of candidates (Gboard style).
      */
-    fun convert(input: String): String? {
+    fun convert(input: String): List<String> {
         val lower = input.lowercase()
-        if (commonWords.containsKey(lower)) return commonWords[lower]
+        val candidates = mutableSetOf<String>()
 
+        // 1. Exact dictionary match (highest priority)
+        if (commonWords.containsKey(lower)) {
+            candidates.add(commonWords[lower]!!)
+        }
+
+        // 2. Generate transliterations
+        // We generate two paths: one strict Avro (a=""), one Gboard style (a="া")
+        val strictAvro = generateTransliteration(lower, treatSingleAAsAa = false)
+        if (strictAvro.isNotEmpty()) candidates.add(strictAvro)
+
+        val gboardStyle = generateTransliteration(lower, treatSingleAAsAa = true)
+        if (gboardStyle.isNotEmpty()) candidates.add(gboardStyle)
+
+        return candidates.toList()
+    }
+
+    private fun generateTransliteration(lower: String, treatSingleAAsAa: Boolean): String {
         val result = StringBuilder()
         var i = 0
         var lastWasConsonant = false
@@ -48,7 +65,7 @@ class PhoneticEngine(context: Context) {
         while (i < lower.length) {
             var matched = false
 
-            // 1. Try conjuncts first (longest match)
+            // Try conjuncts
             for ((key, value) in conjuncts) {
                 if (lower.startsWith(key, i)) {
                     result.append(value)
@@ -60,7 +77,7 @@ class PhoneticEngine(context: Context) {
             }
             if (matched) continue
 
-            // 2. Try consonants
+            // Try consonants
             val remaining = lower.substring(i)
             val consonantMatch = consonants.keys.filter { remaining.startsWith(it) }
                 .maxByOrNull { it.length }
@@ -72,15 +89,24 @@ class PhoneticEngine(context: Context) {
                 continue
             }
 
-            // 3. Try vowels/signs
+            // Try vowels/signs
             val vowelMatch = vowels.keys.filter { remaining.startsWith(it) }
                 .maxByOrNull { it.length }
 
             if (vowelMatch != null) {
-                val value = if (lastWasConsonant) {
-                    vowelSigns[vowelMatch] ?: ""
+                var value = ""
+                if (lastWasConsonant) {
+                    value = vowelSigns[vowelMatch] ?: ""
+                    // Gboard hack: if user typed 'a', they often mean 'া'
+                    if (treatSingleAAsAa && vowelMatch == "a") {
+                        value = "া"
+                    }
                 } else {
-                    vowels[vowelMatch] ?: ""
+                    value = vowels[vowelMatch] ?: ""
+                    // Gboard hack: if user typed 'a' at start, they often mean 'আ'
+                    if (treatSingleAAsAa && vowelMatch == "a" && i == 0) {
+                        value = "আ"
+                    }
                 }
                 result.append(value)
                 i += vowelMatch.length
@@ -88,20 +114,17 @@ class PhoneticEngine(context: Context) {
                 continue
             }
 
-            // 4. Passthrough
             result.append(lower[i])
             lastWasConsonant = false
             i++
         }
-
-        return if (result.isNotEmpty()) result.toString() else null
+        return result.toString()
     }
 
     fun isComplete(buffer: String): Boolean {
         val lower = buffer.lowercase()
         if (commonWords.containsKey(lower)) return true
         
-        // If there's a longer rule starting with this, it's not complete
         val hasLongerRule = conjuncts.any { it.first.startsWith(lower) && it.first.length > lower.length } ||
                 consonants.keys.any { it.startsWith(lower) && it.length > lower.length } ||
                 vowels.keys.any { it.startsWith(lower) && it.length > lower.length }
