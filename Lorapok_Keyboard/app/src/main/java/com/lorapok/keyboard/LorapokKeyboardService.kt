@@ -318,37 +318,57 @@ class LorapokKeyboardService : InputMethodService() {
         }
     }
 
+    private lateinit var englishPredictionEngine: EnglishPredictionEngine
+
+    // ... inside onCreate()
+    override fun onCreate() {
+        super.onCreate()
+        phoneticEngine = PhoneticEngine(this)
+        predictionEngine = PredictionEngine()
+        englishPredictionEngine = EnglishPredictionEngine()
+        userLearning = UserLearningSystem(this)
+        toneRewriter = ToneRewriter(this).apply {
+            setOnAcceptListener { rewritten ->
+                currentInputConnection?.commitText(rewritten, 1)
+            }
+        }
+        // ... vibrator setup
+    }
+
+    // ... replace input methods
     private fun handleCharInput(key: String) {
         val ic = currentInputConnection ?: return
         val char = if (isShiftActive) key.uppercase() else key.lowercase()
+        val lowerChar = char.lowercase()
 
-        if (isBengaliMode && currentState == KeyboardState.QWERTY) {
-            phoneticBuffer.append(char.lowercase())
+        if (currentState == KeyboardState.QWERTY) {
+            phoneticBuffer.append(lowerChar)
             val bufferStr = phoneticBuffer.toString()
-            val candidates = phoneticEngine.convert(bufferStr)
-            
-            if (candidates.isNotEmpty()) {
-                val bestMatch = candidates.first()
-                // Gboard-style: keep composing until space or select
-                ic.setComposingText(bestMatch, 1)
-                
-                // Suggestions: [Best Match, Alternative1, Buffer, Prediction1]
-                val suggestions = mutableListOf<String>()
-                suggestions.addAll(candidates)
-                if (!suggestions.contains(bufferStr)) suggestions.add(bufferStr)
-                suggestions.addAll(predictionEngine.predict(bestMatch))
-                
-                updateSuggestions(suggestions.distinct())
+
+            if (isBengaliMode) {
+                val candidates = phoneticEngine.convert(bufferStr)
+                if (candidates.isNotEmpty()) {
+                    val bestMatch = candidates.first()
+                    ic.setComposingText(bestMatch, 1)
+                    
+                    val suggestions = mutableListOf<String>()
+                    suggestions.addAll(candidates)
+                    if (!suggestions.contains(bufferStr)) suggestions.add(bufferStr)
+                    suggestions.addAll(predictionEngine.predict(bestMatch))
+                    updateSuggestions(suggestions.distinct())
+                } else {
+                    ic.commitText(char, 1)
+                    phoneticBuffer.clear()
+                }
             } else {
-                ic.commitText(char, 1)
-                phoneticBuffer.clear()
+                // English Mode: Autocomplete
+                ic.setComposingText(bufferStr, 1)
+                val suggestions = mutableListOf(bufferStr)
+                suggestions.addAll(englishPredictionEngine.autocomplete(bufferStr))
+                updateSuggestions(suggestions.distinct())
             }
         } else {
             ic.commitText(char, 1)
-            if (!isBengaliMode) {
-                // Keep it clean for English, or we could add an English dictionary here
-                updateSuggestions(listOf("I", "The", "You", "And", "It"))
-            }
         }
         playClickSound()
         if (isShiftActive) { isShiftActive = false; buildKeyboard() }
@@ -364,20 +384,49 @@ class LorapokKeyboardService : InputMethodService() {
         if (phoneticBuffer.isNotEmpty()) {
             ic.finishComposingText()
             val bufferStr = phoneticBuffer.toString()
-            val candidates = phoneticEngine.convert(bufferStr)
-            val finalWord = if (candidates.isNotEmpty()) candidates.first() else bufferStr
-            userLearning.recordWord(finalWord)
+            
+            if (isBengaliMode) {
+                val candidates = phoneticEngine.convert(bufferStr)
+                val finalWord = if (candidates.isNotEmpty()) candidates.first() else bufferStr
+                userLearning.recordWord(finalWord)
+            } else {
+                // English: commit buffer directly (we don't auto-correct aggressively yet)
+                val finalWord = bufferStr
+                userLearning.recordWord(finalWord)
+            }
             phoneticBuffer.clear()
         }
         ic.commitText(" ", 1)
-        showDefaultSuggestions()
+        
+        // Show next word predictions based on the last word
+        val lastText = ic.getTextBeforeCursor(20, 0)?.toString()?.trim() ?: ""
+        val lastWord = lastText.split(" ").lastOrNull() ?: ""
+        
+        if (isBengaliMode) {
+            if (lastWord.isNotEmpty()) {
+                updateSuggestions(predictionEngine.predict(lastWord))
+            } else {
+                showDefaultSuggestions()
+            }
+        } else {
+            if (lastWord.isNotEmpty()) {
+                val englishPredictions = englishPredictionEngine.predictNext(lastWord)
+                if (englishPredictions.isNotEmpty()) {
+                    updateSuggestions(englishPredictions)
+                } else {
+                    showDefaultSuggestions()
+                }
+            } else {
+                showDefaultSuggestions()
+            }
+        }
     }
 
     private fun showDefaultSuggestions() {
         if (isBengaliMode) {
             updateSuggestions(predictionEngine.getCommonSuggestions())
         } else {
-            updateSuggestions(listOf("I", "The", "You", "And", "It"))
+            updateSuggestions(englishPredictionEngine.getDefaultSuggestions())
         }
     }
 
@@ -391,17 +440,25 @@ class LorapokKeyboardService : InputMethodService() {
                 showDefaultSuggestions()
             } else {
                 val bufferStr = phoneticBuffer.toString()
-                val candidates = phoneticEngine.convert(bufferStr)
-                val bestMatch = if (candidates.isNotEmpty()) candidates.first() else bufferStr
-                ic.setComposingText(bestMatch, 1)
-                
-                val suggestions = mutableListOf<String>()
-                suggestions.addAll(candidates)
-                if (!suggestions.contains(bufferStr)) suggestions.add(bufferStr)
-                updateSuggestions(suggestions.distinct())
+                if (isBengaliMode) {
+                    val candidates = phoneticEngine.convert(bufferStr)
+                    val bestMatch = if (candidates.isNotEmpty()) candidates.first() else bufferStr
+                    ic.setComposingText(bestMatch, 1)
+                    
+                    val suggestions = mutableListOf<String>()
+                    suggestions.addAll(candidates)
+                    if (!suggestions.contains(bufferStr)) suggestions.add(bufferStr)
+                    updateSuggestions(suggestions.distinct())
+                } else {
+                    ic.setComposingText(bufferStr, 1)
+                    val suggestions = mutableListOf(bufferStr)
+                    suggestions.addAll(englishPredictionEngine.autocomplete(bufferStr))
+                    updateSuggestions(suggestions.distinct())
+                }
             }
         } else {
             ic.deleteSurroundingText(1, 0)
+            showDefaultSuggestions()
         }
     }
 
