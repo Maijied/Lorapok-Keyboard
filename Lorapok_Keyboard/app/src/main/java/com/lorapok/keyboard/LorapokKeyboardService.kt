@@ -227,6 +227,7 @@ class LorapokKeyboardService : InputMethodService() {
         
         val symbolLabel = if (currentState == KeyboardState.SYMBOLS) "ABC" else "?123"
         bottomRow.addView(makeSpecialKey(symbolLabel, 1.3f) { 
+            commitCurrentBuffer()
             currentState = if (currentState == KeyboardState.SYMBOLS) KeyboardState.QWERTY else KeyboardState.SYMBOLS
             buildKeyboard()
         })
@@ -237,6 +238,7 @@ class LorapokKeyboardService : InputMethodService() {
         
         val emojiLabel = if (currentState == KeyboardState.EMOJIS) "ABC" else "😊"
         bottomRow.addView(makeSpecialKey(emojiLabel, 1f) { 
+            commitCurrentBuffer()
             currentState = if (currentState == KeyboardState.EMOJIS) KeyboardState.QWERTY else KeyboardState.EMOJIS
             buildKeyboard()
         })
@@ -533,7 +535,27 @@ class LorapokKeyboardService : InputMethodService() {
         }
     }
 
-    private fun toggleLanguage() { isBengaliMode = !isBengaliMode; phoneticBuffer.clear(); buildKeyboard() }
+    private fun commitCurrentBuffer() {
+        if (phoneticBuffer.isNotEmpty()) {
+            currentInputConnection?.finishComposingText()
+            val bufferStr = phoneticBuffer.toString()
+            if (isBengaliMode) {
+                val candidates = phoneticEngine.convert(bufferStr)
+                val finalWord = if (candidates.isNotEmpty()) candidates.first() else bufferStr
+                userLearning.recordWord(finalWord)
+            } else {
+                userLearning.recordWord(bufferStr)
+            }
+            phoneticBuffer.clear()
+        }
+    }
+
+    private fun toggleLanguage() { 
+        commitCurrentBuffer()
+        isBengaliMode = !isBengaliMode
+        buildKeyboard() 
+    }
+    
     private fun toggleShift() { isShiftActive = !isShiftActive; buildKeyboard() }
 
     private fun haptic() {

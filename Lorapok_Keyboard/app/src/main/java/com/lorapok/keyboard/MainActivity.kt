@@ -145,6 +145,26 @@ fun SetupScreen() {
                 textAlign = TextAlign.Center,
                 lineHeight = 18.sp
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            var testText by remember { mutableStateOf("") }
+            androidx.compose.material3.OutlinedTextField(
+                value = testText,
+                onValueChange = { testText = it },
+                label = { Text("কীবোর্ড টেস্ট করুন (Test Here)") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp),
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = accentIndigo,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                    focusedLabelColor = accentIndigo,
+                    unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
         }
     }
 }
