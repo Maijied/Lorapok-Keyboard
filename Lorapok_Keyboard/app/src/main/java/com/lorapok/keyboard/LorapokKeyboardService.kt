@@ -101,7 +101,7 @@ class LorapokKeyboardService : InputMethodService() {
         rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(colorKeyboardBg)
-            setPadding(dp(4), dp(6), dp(4), dp(24)) // Added bottom padding to avoid nav bar overlap
+            setPadding(dp(4), dp(6), dp(4), dp(48)) // Increased bottom padding to avoid nav bar overlap
         }
         buildKeyboard()
         return rootLayout
