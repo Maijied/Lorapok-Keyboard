@@ -99,11 +99,12 @@ class EnglishPredictionEngine(context: Context) {
     fun autocomplete(prefix: String): List<String> {
         if (prefix.isEmpty()) return emptyList()
         val lowerPrefix = prefix.lowercase()
-        return commonWords
-            .filter { it.startsWith(lowerPrefix) }
-            .sortedBy { it.length }
-            .take(5)
-            .map { if (prefix.first().isUpperCase()) it.replaceFirstChar { c -> c.uppercase() } else it }
+        val results = dictionaryTrie.autocomplete(lowerPrefix, 5)
+        
+        return results.map { 
+            val word = it.second as String
+            if (prefix.first().isUpperCase()) word.replaceFirstChar { c -> c.uppercase() } else word
+        }
     }
 
     fun predictNext(currentWord: String): List<String> {

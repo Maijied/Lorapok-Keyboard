@@ -325,7 +325,7 @@ class LorapokKeyboardService : InputMethodService() {
         super.onCreate()
         phoneticEngine = PhoneticEngine(this)
         predictionEngine = PredictionEngine()
-        englishPredictionEngine = EnglishPredictionEngine()
+        englishPredictionEngine = EnglishPredictionEngine(this)
         userLearning = UserLearningSystem(this)
         toneRewriter = ToneRewriter(this).apply {
             setOnAcceptListener { rewritten ->

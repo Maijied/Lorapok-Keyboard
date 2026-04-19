@@ -15,7 +15,6 @@ import java.io.InputStreamReader
  */
 class PhoneticEngine(context: Context) {
 
-    private val commonWords: Map<String, String>
     private val vowels: Map<String, String>
     private val vowelSigns: Map<String, String>
     private val consonants: Map<String, String>
