@@ -63,7 +63,9 @@ def generate_bengali():
         "jokhon": "যখন", "kokhono": "কখনো", "keu": "কেউ", "kichu": "কিছু",
         "onek": "অনেক", "beshi": "বেশি", "kom": "কম", "sathe": "সাথে", "pase": "পাশে",
         "samne": "সামনে", "pichone": "পিছনে", "upore": "উপরে", "niche": "নিচে",
-        "vitore": "ভিতরে", "baire": "বাইরে", "kache": "কাছে", "dure": "দূরে"
+        "vitore": "ভিতরে", "baire": "বাইরে", "kache": "কাছে", "dure": "দূরে",
+        "prediction": "প্রেডিকশন", "ai": "এআই", "english": "ইংলিশ", "working": "ওয়ার্কিং",
+        "hello": "হ্যালো", "sir": "স্যার", "how": "হাউ", "what": "হোয়াট"
     }
     
     # Format: {"latin": {"bengali": freq}}

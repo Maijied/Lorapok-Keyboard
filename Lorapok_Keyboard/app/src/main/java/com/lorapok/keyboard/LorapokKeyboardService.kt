@@ -101,7 +101,7 @@ class LorapokKeyboardService : InputMethodService() {
         rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(colorKeyboardBg)
-            setPadding(dp(4), dp(6), dp(4), dp(8))
+            setPadding(dp(4), dp(6), dp(4), dp(24)) // Added bottom padding to avoid nav bar overlap
         }
         buildKeyboard()
         return rootLayout
@@ -254,7 +254,7 @@ class LorapokKeyboardService : InputMethodService() {
             background = makeKeyDrawable(colorKeyBg, colorKeyActive)
             stateListAnimator = null
             elevation = dp(2).toFloat()
-            layoutParams = LinearLayout.LayoutParams(0, dp(50), weight).apply {
+            layoutParams = LinearLayout.LayoutParams(0, dp(58), weight).apply {
                 setMargins(dp(3), dp(2), dp(3), dp(2))
             }
             setOnClickListener { haptic(); handleCharInput(label) }
@@ -270,10 +270,43 @@ class LorapokKeyboardService : InputMethodService() {
             isAllCaps = false
             background = makeKeyDrawable(colorSpecialKeyBg, colorKeyActive)
             stateListAnimator = null
-            layoutParams = LinearLayout.LayoutParams(0, dp(50), weight).apply {
+            layoutParams = LinearLayout.LayoutParams(0, dp(58), weight).apply {
                 setMargins(dp(3), dp(2), dp(3), dp(2))
             }
-            setOnClickListener { haptic(); action() }
+            
+            if (label == "⌫") {
+                var isDeleting = false
+                val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                val deleteRunnable = object : Runnable {
+                    override fun run() {
+                        if (isDeleting) {
+                            action()
+                            handler.postDelayed(this, 50)
+                        }
+                    }
+                }
+                setOnTouchListener { v, event ->
+                    when (event.action) {
+                        android.view.MotionEvent.ACTION_DOWN -> {
+                            haptic()
+                            action()
+                            isDeleting = true
+                            handler.postDelayed(deleteRunnable, 400)
+                            v.isPressed = true
+                            true
+                        }
+                        android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                            isDeleting = false
+                            handler.removeCallbacks(deleteRunnable)
+                            v.isPressed = false
+                            true
+                        }
+                        else -> false
+                    }
+                }
+            } else {
+                setOnClickListener { haptic(); action() }
+            }
         }
     }
 
@@ -287,7 +320,7 @@ class LorapokKeyboardService : InputMethodService() {
             background = makeKeyDrawable(colorKeyBg, colorKeyActive)
             stateListAnimator = null
             elevation = dp(2).toFloat()
-            layoutParams = LinearLayout.LayoutParams(0, dp(50), weight).apply {
+            layoutParams = LinearLayout.LayoutParams(0, dp(58), weight).apply {
                 setMargins(dp(3), dp(2), dp(3), dp(2))
             }
             setOnClickListener { haptic(); handleSpace() }
