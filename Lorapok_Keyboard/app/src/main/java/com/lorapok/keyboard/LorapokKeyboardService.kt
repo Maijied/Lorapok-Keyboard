@@ -81,6 +81,7 @@ class LorapokKeyboardService : InputMethodService() {
         super.onCreate()
         phoneticEngine = PhoneticEngine(this)
         predictionEngine = PredictionEngine()
+        englishPredictionEngine = EnglishPredictionEngine(this)
         userLearning = UserLearningSystem(this)
         toneRewriter = ToneRewriter(this).apply {
             setOnAcceptListener { rewritten ->
@@ -319,21 +320,6 @@ class LorapokKeyboardService : InputMethodService() {
     }
 
     private lateinit var englishPredictionEngine: EnglishPredictionEngine
-
-    // ... inside onCreate()
-    override fun onCreate() {
-        super.onCreate()
-        phoneticEngine = PhoneticEngine(this)
-        predictionEngine = PredictionEngine()
-        englishPredictionEngine = EnglishPredictionEngine(this)
-        userLearning = UserLearningSystem(this)
-        toneRewriter = ToneRewriter(this).apply {
-            setOnAcceptListener { rewritten ->
-                currentInputConnection?.commitText(rewritten, 1)
-            }
-        }
-        // ... vibrator setup
-    }
 
     // ... replace input methods
     private fun handleCharInput(key: String) {
