@@ -200,6 +200,10 @@ class KeyboardViewController: UIInputViewController {
         langBtn.widthAnchor.constraint(equalToConstant: 40).isActive = true
         stack.addArrangedSubview(langBtn)
 
+        let commaBtn = createCharacterKey(",")
+        commaBtn.widthAnchor.constraint(equalToConstant: 40).isActive = true
+        stack.addArrangedSubview(commaBtn)
+
         let spaceBtn = UIButton(type: .system)
         spaceBtn.setTitle(isBengaliMode ? "বাংলা" : "English", for: .normal)
         spaceBtn.titleLabel?.font = UIFont.systemFont(ofSize: 14)
@@ -208,6 +212,11 @@ class KeyboardViewController: UIInputViewController {
         spaceBtn.layer.cornerRadius = 6
         spaceBtn.addTarget(self, action: #selector(spaceTapped), for: .touchUpInside)
         stack.addArrangedSubview(spaceBtn)
+
+        let periodLabel = isBengaliMode ? "।" : "."
+        let periodBtn = createCharacterKey(periodLabel)
+        periodBtn.widthAnchor.constraint(equalToConstant: 40).isActive = true
+        stack.addArrangedSubview(periodBtn)
 
         let emojiBtn = createSpecialKey(title: "😊") { /* TODO: emoji */ }
         emojiBtn.widthAnchor.constraint(equalToConstant: 40).isActive = true

@@ -26,6 +26,13 @@
             </intent-filter>
         </activity>
 
+        <!-- Settings Activity -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="Settings"
+            android:theme="@style/Theme.LorapokKeyboard" />
+
         <!-- Keyboard IME Service -->
         <service
             android:name=".LorapokKeyboardService"

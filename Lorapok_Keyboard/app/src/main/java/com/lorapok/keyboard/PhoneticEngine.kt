@@ -59,36 +59,44 @@ class PhoneticEngine(context: Context) {
 
     /**
      * Convert Latin input to Bengali, returning a list of candidates (Gboard style).
+     * Pipeline: Dictionary exact → Transliteration → Fuzzy autocorrect → Prefix predictions
      */
     fun convert(input: String): List<String> {
         val lower = input.lowercase()
         val candidates = mutableSetOf<String>()
 
-        // 1. Lexicon Dictionary match (highest priority, using Trie)
-        val dictMatches = dictionaryTrie.autocomplete(lower, 3)
-        // If the exact typed string matches a prefix perfectly, we add those bengali words
-        // Wait, for 'convert', we only want exact matches of the buffer if possible, or prefix matches.
-        // Gboard shows exactly matched conversions first.
+        // 1. Lexicon Dictionary exact match (highest priority)
         val exactMatch = dictionaryTrie.search(lower)
         if (exactMatch != null) {
             candidates.add(exactMatch as String)
         }
 
         // 2. Generate transliterations
-        // We generate two paths: one strict Avro (a=""), one Gboard style (a="া")
         val gboardStyle = generateTransliteration(lower, treatSingleAAsAa = true)
         if (gboardStyle.isNotEmpty()) candidates.add(gboardStyle)
 
         val strictAvro = generateTransliteration(lower, treatSingleAAsAa = false)
         if (strictAvro.isNotEmpty()) candidates.add(strictAvro)
 
-        // 3. Add autocomplete prefix predictions if typing is incomplete
+        // 3. Fuzzy autocorrect: if no exact dictionary match, suggest close matches
+        if (exactMatch == null && autocorrectEnabled && lower.length >= 3) {
+            val fuzzyMatches = dictionaryTrie.fuzzySearch(lower, maxDistance = 1, limit = 2)
+            for (match in fuzzyMatches) {
+                candidates.add(match.second as String)
+            }
+        }
+
+        // 4. Add autocomplete prefix predictions if typing is incomplete
+        val dictMatches = dictionaryTrie.autocomplete(lower, 3)
         for (match in dictMatches) {
             candidates.add(match.second as String)
         }
 
         return candidates.toList()
     }
+
+    /** Toggle autocorrect on/off (controlled by settings) */
+    var autocorrectEnabled = true
 
 
     private fun generateTransliteration(lower: String, treatSingleAAsAa: Boolean): String {

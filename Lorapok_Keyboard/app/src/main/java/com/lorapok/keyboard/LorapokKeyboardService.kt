@@ -1,6 +1,8 @@
 package com.lorapok.keyboard
 
 import android.content.Context
+import android.content.Intent
+import android.content.SharedPreferences
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.os.VibrationEffect
@@ -49,6 +51,11 @@ class LorapokKeyboardService : InputMethodService() {
     private lateinit var suggestionBar: LinearLayout
     private var vibrator: Vibrator? = null
 
+    // ── User Preferences ──
+    private var hapticEnabled = true
+    private var soundEnabled = true
+    private var autocorrectEnabled = true
+
     // ── Professional Color Palette ──
     private val colorKeyboardBg = Color.parseColor("#121212")
     private val colorKeyBg = Color.parseColor("#1E1E1E")
@@ -68,7 +75,7 @@ class LorapokKeyboardService : InputMethodService() {
     private val symbolRows = listOf(
         listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0"),
         listOf("@", "#", "$", "_", "&", "-", "+", "(", ")", "/"),
-        listOf("*", "\"", "'", ":", ";", "!", "?")
+        listOf("*", "\"", "'", ":", ";", "!", "?", ",", ".")
     )
 
     private val emojiList = listOf(
@@ -79,7 +86,10 @@ class LorapokKeyboardService : InputMethodService() {
 
     override fun onCreate() {
         super.onCreate()
-        phoneticEngine = PhoneticEngine(this)
+        loadPreferences()
+        phoneticEngine = PhoneticEngine(this).apply {
+            autocorrectEnabled = this@LorapokKeyboardService.autocorrectEnabled
+        }
         predictionEngine = PredictionEngine()
         englishPredictionEngine = EnglishPredictionEngine(this)
         userLearning = UserLearningSystem(this)
@@ -95,6 +105,14 @@ class LorapokKeyboardService : InputMethodService() {
             @Suppress("DEPRECATION")
             getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         }
+    }
+
+    private fun loadPreferences() {
+        val prefs = getSharedPreferences(KeyboardPrefs.PREFS_NAME, Context.MODE_PRIVATE)
+        isBengaliMode = prefs.getBoolean(KeyboardPrefs.KEY_DEFAULT_BENGALI, true)
+        hapticEnabled = prefs.getBoolean(KeyboardPrefs.KEY_HAPTIC_ENABLED, true)
+        soundEnabled = prefs.getBoolean(KeyboardPrefs.KEY_SOUND_ENABLED, true)
+        autocorrectEnabled = prefs.getBoolean(KeyboardPrefs.KEY_AUTOCORRECT_ENABLED, true)
     }
 
     override fun onCreateInputView(): View {
@@ -137,30 +155,52 @@ class LorapokKeyboardService : InputMethodService() {
     }
 
     private fun buildQwertyLayout() {
-        for ((rowIdx, row) in qwertyRows.withIndex()) {
-            val rowLayout = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = dp(4) }
-            }
-
-            if (rowIdx == 2) {
-                rowLayout.addView(makeSpecialKey("⇧", 1.4f) { toggleShift() })
-            }
-
-            for (key in row) {
-                rowLayout.addView(makeCharKey(key, 1f))
-            }
-
-            when (rowIdx) {
-                0 -> rowLayout.addView(makeSpecialKey("⌫", 1.4f) { handleBackspace() })
-                1 -> rowLayout.addView(makeSpecialKey("↵", 1.6f) { handleEnter() })
-            }
-            rootLayout.addView(rowLayout)
+        // Row 1: 10 char keys — full width, each weight 1.0 (total = 10)
+        val row1 = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(4) }
         }
+        for (key in qwertyRows[0]) {
+            row1.addView(makeCharKey(key, 1f))
+        }
+        rootLayout.addView(row1)
+
+        // Row 2: 9 char keys centered — spacer(0.5) + 9 keys(1.0 each) + spacer(0.5) = total 10
+        val row2 = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(4) }
+        }
+        row2.addView(makeSpacer(0.5f))
+        for (key in qwertyRows[1]) {
+            row2.addView(makeCharKey(key, 1f))
+        }
+        row2.addView(makeSpacer(0.5f))
+        rootLayout.addView(row2)
+
+        // Row 3: ⇧(1.5) + 7 char keys(1.0 each) + ⌫(1.5) = total 10
+        val row3 = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp(4) }
+        }
+        row3.addView(makeSpecialKey("⇧", 1.5f) { toggleShift() })
+        for (key in qwertyRows[2]) {
+            row3.addView(makeCharKey(key, 1f))
+        }
+        row3.addView(makeSpecialKey("⌫", 1.5f) { handleBackspace() })
+        rootLayout.addView(row3)
+
         buildBottomRow()
     }
 
@@ -176,11 +216,14 @@ class LorapokKeyboardService : InputMethodService() {
             }
 
             for (key in row) {
-                rowLayout.addView(makeCharKey(key, 1f))
+                // Use Bengali numbers in Bengali mode
+                val displayKey = if (isBengaliMode) convertToBengaliNumber(key) else key
+                rowLayout.addView(makeCharKey(displayKey, 1f))
             }
 
+            // Row 3 has 9 chars + ⌫ = 10 total (same as other rows)
             if (rowIdx == 2) {
-                rowLayout.addView(makeSpecialKey("⌫", 1.4f) { handleBackspace() })
+                rowLayout.addView(makeSpecialKey("⌫", 1f) { handleBackspace() })
             }
             rootLayout.addView(rowLayout)
         }
@@ -226,15 +269,11 @@ class LorapokKeyboardService : InputMethodService() {
         }
         
         val symbolLabel = if (currentState == KeyboardState.SYMBOLS) "ABC" else "?123"
-        bottomRow.addView(makeSpecialKey(symbolLabel, 1.3f) { 
+        bottomRow.addView(makeSpecialKey(symbolLabel, 1.2f) { 
             commitCurrentBuffer()
             currentState = if (currentState == KeyboardState.SYMBOLS) KeyboardState.QWERTY else KeyboardState.SYMBOLS
             buildKeyboard()
         })
-        
-        bottomRow.addView(makeSpecialKey("🌐", 1f) { toggleLanguage() })
-        bottomRow.addView(makeSpaceKey(4f))
-        bottomRow.addView(makeSpecialKey("।", 1f) { commitText("।") })
         
         val emojiLabel = if (currentState == KeyboardState.EMOJIS) "ABC" else "😊"
         bottomRow.addView(makeSpecialKey(emojiLabel, 1f) { 
@@ -242,6 +281,14 @@ class LorapokKeyboardService : InputMethodService() {
             currentState = if (currentState == KeyboardState.EMOJIS) KeyboardState.QWERTY else KeyboardState.EMOJIS
             buildKeyboard()
         })
+        
+        bottomRow.addView(makeSpecialKey(",", 1f) { haptic(); commitText(",") })
+        bottomRow.addView(makeSpaceKey(3f))
+        
+        val periodLabel = if (isBengaliMode) "।" else "."
+        bottomRow.addView(makeSpecialKey(periodLabel, 1f) { haptic(); commitText(periodLabel) })
+        bottomRow.addView(makeSpecialKey("↵", 1.2f) { handleEnter() })
+        bottomRow.addView(makeSpecialKey("⚙", 0.8f) { openSettings() })
         
         rootLayout.addView(bottomRow)
     }
@@ -314,7 +361,7 @@ class LorapokKeyboardService : InputMethodService() {
 
     private fun makeSpaceKey(weight: Float): Button {
         return Button(this).apply {
-            text = if (isBengaliMode) "বাংলা" else "English"
+            text = if (isBengaliMode) "🌐 বাংলা" else "🌐 English"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             setTextColor(colorTextSecondary)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
@@ -326,7 +373,7 @@ class LorapokKeyboardService : InputMethodService() {
                 setMargins(dp(3), dp(2), dp(3), dp(2))
             }
             setOnClickListener { haptic(); handleSpace() }
-            setOnLongClickListener { haptic(); handleToneRewrite(); true }
+            setOnLongClickListener { haptic(); toggleLanguage(); true }
         }
     }
 
@@ -351,6 +398,12 @@ class LorapokKeyboardService : InputMethodService() {
         return GradientDrawable().apply {
             setColor(color)
             cornerRadius = radius.toFloat()
+        }
+    }
+
+    private fun makeSpacer(weight: Float): View {
+        return View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, 1, weight)
         }
     }
 
@@ -396,6 +449,7 @@ class LorapokKeyboardService : InputMethodService() {
     }
 
     private fun playClickSound() {
+        if (!soundEnabled) return
         val am = getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
         am?.playSoundEffect(android.media.AudioManager.FX_KEYPRESS_STANDARD)
     }
@@ -554,11 +608,27 @@ class LorapokKeyboardService : InputMethodService() {
         commitCurrentBuffer()
         isBengaliMode = !isBengaliMode
         buildKeyboard() 
+        showDefaultSuggestions()
+    }
+
+    private fun convertToBengaliNumber(input: String): String {
+        return input
+            .replace('0', '০')
+            .replace('1', '১')
+            .replace('2', '২')
+            .replace('3', '৩')
+            .replace('4', '৪')
+            .replace('5', '৫')
+            .replace('6', '৬')
+            .replace('7', '৭')
+            .replace('8', '৮')
+            .replace('9', '৯')
     }
     
     private fun toggleShift() { isShiftActive = !isShiftActive; buildKeyboard() }
 
     private fun haptic() {
+        if (!hapticEnabled) return
         vibrator?.let { v ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 v.vibrate(VibrationEffect.createOneShot(12, VibrationEffect.DEFAULT_AMPLITUDE))
@@ -570,6 +640,12 @@ class LorapokKeyboardService : InputMethodService() {
         val ic = currentInputConnection ?: return
         val extracted = ic.getTextBeforeCursor(100, 0)
         if (!extracted.isNullOrEmpty()) toneRewriter.show(extracted.toString())
+    }
+
+    private fun openSettings() {
+        val intent = Intent(this, SettingsActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
     }
 
     private fun dp(value: Int): Int = TypedValue.applyDimension(

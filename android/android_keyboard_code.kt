@@ -146,7 +146,12 @@ class BengaliKeyboardService : InputMethodService() {
         }
         bottomRow.addView(createSpecialKey("123", 1.2f) { /* TODO: number layout */ })
         bottomRow.addView(createSpecialKey("🌐", 1f) { toggleLanguage() })
+        bottomRow.addView(createKey(",", 1f))
         bottomRow.addView(createSpaceKey(4f))
+        
+        val periodLabel = if (isBengaliMode) "।" else "."
+        bottomRow.addView(createKey(periodLabel, 1f))
+        
         bottomRow.addView(createSpecialKey("😊", 1f) { /* TODO: emoji */ })
         bottomRow.addView(createSpecialKey("✨", 1f) { /* TODO: tone rewriter */ })
         keyboardLayout.addView(bottomRow)

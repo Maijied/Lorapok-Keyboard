@@ -9,19 +9,19 @@
 ## Phase 1: MVP (Weeks 1-7) — Android Only
 
 ### Week 1-2: Core Development
-- [ ] Android keyboard service setup (InputMethodService)
-- [ ] Phonetic conversion engine (Avro-style: ami → আমি)
-- [ ] Basic UI with light theme
-- [ ] 100 common Bengali words dictionary
-- [ ] English ↔ Bengali language switching
-- [ ] Basic key press animations & haptic feedback
+- [x] Android keyboard service setup (InputMethodService)
+- [x] Phonetic conversion engine (Avro-style: ami → আমি)
+- [x] Basic UI with dark theme (Slate/Indigo)
+- [x] 400+ common Bengali words dictionary
+- [x] English ↔ Bengali language switching
+- [x] Basic key press animations & haptic feedback
 
 ### Week 3-4: Features
-- [ ] AI predictions (frequency-based, no ML yet)
-- [ ] Autocorrection for common mistakes
-- [ ] Emoji keyboard integration
-- [ ] Settings screen (theme, haptic, language)
-- [ ] User dictionary (learns new words)
+- [x] AI predictions (frequency-based, bigram model)
+- [x] Autocorrection for common mistakes (fuzzy Trie matching)
+- [x] Emoji keyboard integration
+- [x] Settings screen (theme, haptic, language, autocorrect)
+- [x] User dictionary (learns new words)
 
 ### Week 5-6: Testing & Polish
 - [ ] Beta testing with 20 users
