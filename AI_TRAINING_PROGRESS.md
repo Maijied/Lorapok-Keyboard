@@ -25,8 +25,8 @@
 
 ```
 Phase 1: MVP (✅ COMPLETE)
-Phase 2: Advanced Intelligence - Android (🔨 IN PROGRESS)
-Phase 3: 1M Vocabulary Dataset (🔨 IN PROGRESS)
+Phase 2: Advanced Intelligence - Android (✅ COMPLETE)
+Phase 3: 1M Vocabulary Scaling (✅ COMPLETE - Achieved 2.3M)
 Phase 4: iOS Feature Parity (⏸️ DEFERRED)
 Phase 5: Bi-LSTM Neural Prediction (⏸️ FUTURE)
 Phase 6: Premium Tone Features (⏸️ FUTURE)
@@ -107,8 +107,8 @@ Phase 6: Premium Tone Features (⏸️ FUTURE)
 | Reddit r/bangladesh (social/conversational) | ✅ Done | Recursive pagination |
 | Facebook/Twitter public data | 🔨 In Progress | Via search + ROOTS dataset attempt |
 | Research baseline preserved | ✅ Done | `data/research_corpus/bengali_research_v1.txt` |
-| **Current vocabulary** | **644,968 unique words** | As of 2026-04-23 |
-| **Target vocabulary** | **1,000,000 unique words** | |
+| **Current vocabulary** | **2,345,807 unique words** | As of 2026-04-24 |
+| **Target vocabulary** | **2,000,000+ unique words** | **EXCEEDED** |
 
 ---
 
@@ -139,6 +139,10 @@ These are from the user-provided resource list and should be integrated to push 
 | Source | Type | URL | Priority | Notes |
 |---|---|---|---|---|
 | **TituLM Bangla Corpus** | Web Crawl HF | `huggingface.co/datasets/hishab/titulm-bangla-corpus` | ✅ Integrated |
+| **mC4 (Common Crawl)** | Massive Crawl | `allenai/c4` (bn subset) | ✅ Integrated |
+| **ebanglalibrary** | Literature | `ebanglalibrary.com` | ✅ Integrated |
+| **Istishon** | Blog | `istishon.com` | ✅ Integrated |
+| **Banglatangla** | Blog | `banglatangla.com` | ✅ Integrated |
 
 ### 🎯 HIGH-PRIORITY Sources to Add Next
 

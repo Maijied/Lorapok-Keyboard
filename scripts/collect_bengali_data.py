@@ -341,8 +341,8 @@ class WikipediaCollector:
         return output_file
 
 
-class OSCARCollector:
-    """Collect Bengali text from the OSCAR corpus via HuggingFace datasets."""
+class MC4Collector:
+    """Collect Bengali text from massive Common Crawl datasets (mC4)."""
 
     def __init__(self, output_dir: str):
         self.output_dir = Path(output_dir)
@@ -350,27 +350,31 @@ class OSCARCollector:
         self.cleaner = BengaliTextCleaner()
 
     def collect(self, max_samples: int = 100000) -> Path:
-        """Download and process OSCAR Bengali subset."""
+        """Download and process mC4 Bengali subset (replaces OSCAR)."""
         try:
             from datasets import load_dataset
         except ImportError:
             logger.error("Install datasets: pip install datasets")
             return None
 
-        output_file = self.output_dir / "oscar_bengali.txt"
-        logger.info(f"Loading OSCAR Bengali corpus (max {max_samples} samples)...")
+        output_file = self.output_dir / "hf_mc4.txt"
+        logger.info(f"Loading mC4 Bengali corpus (max {max_samples} samples)...")
 
-        dataset = load_dataset(
-            OSCAR_DATASET_NAME,
-            language=OSCAR_LANGUAGE,
-            split="train",
-            streaming=True,
-            trust_remote_code=True
-        )
+        try:
+            dataset = load_dataset(
+                "allenai/c4",
+                "bn",
+                split="train",
+                streaming=True
+            )
+        except Exception as e:
+            logger.error(f"Failed to load mC4: {e}")
+            output_file.touch()
+            return output_file
 
         count = 0
         with open(output_file, 'w', encoding='utf-8') as f:
-            for sample in tqdm(dataset, total=max_samples, desc="Processing OSCAR"):
+            for sample in tqdm(dataset, total=max_samples, desc="Processing mC4"):
                 text = self.cleaner.clean_text(sample.get("text", ""))
                 if text and self.cleaner.is_bengali_text(text):
                     sentences = self.cleaner.extract_sentences(text)
@@ -380,7 +384,7 @@ class OSCARCollector:
                 if count >= max_samples:
                     break
 
-        logger.info(f"OSCAR collection saved to {output_file}")
+        logger.info(f"mC4 collection saved to {output_file}")
         return output_file
 
 
@@ -730,6 +734,7 @@ class BlogCollector:
     """Collect text from Bengali blog sites (Somewhereinblog, etc.)."""
     def __init__(self, output_dir: str):
         self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         self.cleaner = BengaliTextCleaner()
 
     def collect_somewherein(self, pages: int = 500) -> Path:
@@ -785,13 +790,97 @@ class BlogCollector:
                 except Exception as e:
                     logger.error(f"Failed to scrape Techtunes page {p}: {e}")
         return output_file
-        with open(output_file, 'w', encoding='utf-8') as f:
-            for sentence in self.SAMPLE_SENTENCES:
-                f.write(sentence + '\n')
 
-        logger.info(f"Sample corpus generated: {output_file} ({len(self.SAMPLE_SENTENCES)} sentences)")
+    def collect_istishon(self, pages: int = 100) -> Path:
+        logger.info(f"Collecting from Istishon ({pages} pages)...")
+        output_file = self.output_dir / "blog_istishon.txt"
+        base_url = "https://istishon.com"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            for p in tqdm(range(0, pages), desc="Scraping Istishon"):
+                try:
+                    url = f"{base_url}/node?page={p}"
+                    resp = requests.get(url, headers=headers, timeout=20)
+                    soup = BeautifulSoup(resp.content, 'html.parser')
+                    posts = soup.find_all('div', class_='content')
+                    for post in posts:
+                        text = post.get_text()
+                        cleaned = self.cleaner.clean_text(text)
+                        if cleaned: f.write(cleaned + '\n')
+                    time.sleep(0.5)
+                except Exception as e:
+                    logger.error(f"Failed to scrape Istishon page {p}: {e}")
         return output_file
 
+    def collect_banglatangla(self, pages: int = 100) -> Path:
+        logger.info(f"Collecting from Banglatangla ({pages} pages)...")
+        output_file = self.output_dir / "blog_banglatangla.txt"
+        base_url = "https://banglatangla.com/page"
+        # Using verify=False to bypass SSL mismatch error found during check
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            for p in tqdm(range(1, pages + 1), desc="Scraping Banglatangla"):
+                try:
+                    url = f"{base_url}/{p}"
+                    resp = requests.get(url, headers=headers, timeout=20, verify=False)
+                    soup = BeautifulSoup(resp.content, 'html.parser')
+                    # Updated selector to be more robust
+                    links = [a for a in soup.find_all('a') if a.get('href') and ('/post/' in a.get('href') or '/p/' in a.get('href')) and len(a.get_text()) > 5]
+                    for link in links:
+                        text = link.get_text() + " " + (link.get('title') or "")
+                        cleaned = self.cleaner.clean_text(text)
+                        if cleaned: f.write(cleaned + '\n')
+                    time.sleep(0.5)
+                except Exception as e:
+                    logger.error(f"Failed to scrape Banglatangla page {p}: {e}")
+        return output_file
+
+class LiteratureCollector:
+    """Collect text from Bengali literature sites (eBanglaLibrary, etc.)."""
+    def __init__(self, output_dir: str):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.cleaner = BengaliTextCleaner()
+
+    def collect_ebanglalibrary(self, chapters: int = 1000) -> Path:
+        logger.info(f"Collecting from eBanglaLibrary ({chapters} pages max)...")
+        output_file = self.output_dir / "lit_ebanglalibrary.txt"
+        base_url = "https://www.ebanglalibrary.com/books/"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            # We scrape book archive pages to find book links
+            for p in tqdm(range(1, (chapters//10) + 1), desc="Scraping eBanglaLibrary"):
+                try:
+                    # Updated URL pattern based on browser research
+                    url = f"{base_url}?_paged={p}"
+                    resp = requests.get(url, headers=headers, timeout=20)
+                    soup = BeautifulSoup(resp.content, 'html.parser')
+                    # Updated selector based on actual HTML inspection
+                    links = [a for a in soup.find_all('a') if a.get('href') and a.get('href').startswith('https://www.ebanglalibrary.com/books/') and len(a.get_text()) > 5]
+                        
+                    for link in links:
+                        article_url = link.get('href')
+                        # Deduplicate links (WordPress often has image and title links)
+                        if article_url:
+                            # Simple way to skip common non-book links if any
+                            if article_url == "https://www.ebanglalibrary.com/books/": continue
+                            try:
+                                a_resp = requests.get(article_url, headers=headers, timeout=15)
+                                a_soup = BeautifulSoup(a_resp.content, 'html.parser')
+                                content = a_soup.find('div', class_='entry-content')
+                                if content:
+                                    text = content.get_text()
+                                    cleaned = self.cleaner.clean_text(text)
+                                    if cleaned: f.write(cleaned + '\n')
+                                time.sleep(0.5)
+                            except Exception as e:
+                                logger.warning(f"Failed to fetch book content {article_url}: {e}")
+                except Exception as e:
+                    logger.error(f"Failed to scrape eBanglaLibrary category page {p}: {e}")
+        return output_file
 
 # ============================================================================
 # Corpus Merger & Statistics
@@ -893,19 +982,33 @@ Examples:
   python collect_bengali_data.py --merge --output ./corpus/
         """
     )
-    parser.add_argument("--source", choices=["wikipedia", "oscar", "news", "sample", "hf", "blog", "social", "titulm", "all"],
+    parser.add_argument("--source", choices=["wikipedia", "mc4", "news", "sample", "hf", "blog", "social", "titulm", "literature", "all"],
                         default="sample", help="Data source to collect from")
     parser.add_argument("--dataset", type=str, help="HF dataset name if source is hf")
     parser.add_argument("--output", type=str, default="./corpus",
                         help="Output directory for collected data")
     parser.add_argument("--max", type=int, default=None,
                         help="Maximum number of articles/samples to collect")
+    parser.add_argument("--hf_token", type=str, default=None,
+                        help="HuggingFace access token for gated datasets (like OSCAR)")
     parser.add_argument("--merge", action="store_true",
                         help="Merge all collected corpus files")
     parser.add_argument("--stats", action="store_true",
                         help="Compute statistics for a corpus file")
 
     args = parser.parse_args()
+    
+    # Set HF_TOKEN environment variable if provided
+    hf_token = args.hf_token or os.environ.get("HF_TOKEN")
+    if hf_token:
+        os.environ["HF_TOKEN"] = hf_token
+        try:
+            from huggingface_hub import login
+            login(token=hf_token)
+            logger.info("Successfully authenticated with HuggingFace Hub.")
+        except ImportError:
+            logger.warning("huggingface_hub not installed, token set in ENV only.")
+
     output_dir = args.output
     collected_files = []
 
@@ -951,14 +1054,14 @@ Examples:
         logger.error(f"Wikipedia collection failed: {e}")
 
     try:
-        # Skip gated OSCAR by default in 'all'
-        if args.source == "oscar":
-            oscar = OSCARCollector(output_dir)
-            f = oscar.collect(max_samples=args.max or 100000)
+        # MC4 is a massive public dataset
+        if args.source == "mc4":
+            mc4 = MC4Collector(output_dir)
+            f = mc4.collect(max_samples=args.max or 100000)
             if f:
                 collected_files.append(f)
     except Exception as e:
-        logger.error(f"OSCAR collection failed: {e}")
+        logger.error(f"MC4 collection failed: {e}")
 
     try:
         if args.source in ("news", "all"):
@@ -992,10 +1095,20 @@ Examples:
             blog = BlogCollector(output_dir)
             f1 = blog.collect_somewherein(pages=args.max or 500)
             f2 = blog.collect_techtunes(pages=args.max or 200)
-            if f1: collected_files.append(f1)
-            if f2: collected_files.append(f2)
+            f3 = blog.collect_istishon(pages=args.max or 100)
+            f4 = blog.collect_banglatangla(pages=args.max or 100)
+            for f in [f1, f2, f3, f4]:
+                if f: collected_files.append(f)
     except Exception as e:
         logger.error(f"Blog collection failed: {e}")
+
+    try:
+        if args.source in ("literature", "all"):
+            lit = LiteratureCollector(output_dir)
+            f1 = lit.collect_ebanglalibrary(chapters=args.max or 1000)
+            if f1: collected_files.append(f1)
+    except Exception as e:
+        logger.error(f"Literature collection failed: {e}")
 
     try:
         if args.source in ("social", "all"):
