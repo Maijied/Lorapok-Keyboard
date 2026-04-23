@@ -1,15 +1,15 @@
 # Lorapok Keyboard: Production-Grade Bengali Intelligence 🚀
 
-[![Deployment Status](https://github.com/Maijied/Lorapok-Keyboard/actions/workflows/deploy.yml/badge.svg)](https://maijied.github.io/Keyboard/)
-[![Vocabulary Size](https://img.shields.io/badge/Vocabulary-2.34M+-006a4e.svg)](https://maijied.github.io/Keyboard/docs/data-collection)
+[![Deployment Status](https://github.com/Maijied/Lorapok-Keyboard/actions/workflows/deploy.yml/badge.svg)](https://maijied.github.io/Lorapok-Keyboard/)
+[![Vocabulary Size](https://img.shields.io/badge/Vocabulary-2.34M+-006a4e.svg)](https://maijied.github.io/Lorapok-Keyboard/docs/data-collection)
 [![License](https://img.shields.io/badge/License-MIT-f42a41.svg)](LICENSE)
-[![Documentation](https://img.shields.io/badge/Documentation-Live-blue.svg)](https://maijied.github.io/Keyboard/)
+[![Documentation](https://img.shields.io/badge/Documentation-Live-blue.svg)](https://maijied.github.io/Lorapok-Keyboard/)
 
 **Lorapok Keyboard** is a professional, high-performance Bengali input system engineered for the Android platform. It bridges the gap between traditional phonetic typing and modern AI-driven communication, featuring a market-leading 2.3M+ word vocabulary and real-time context-aware prediction.
 
 ---
 
-## 🌐 [View Official Documentation & Project Roadmap](https://maijied.github.io/Keyboard/)
+## 🌐 [View Official Documentation & Project Roadmap](https://maijied.github.io/Lorapok-Keyboard/)
 
 ---
 
@@ -38,7 +38,7 @@ The Lorapok system is built on three main pillars:
 2.  **Phonetic Engine**: A rule-based transliterator for high-fidelity script conversion.
 3.  **Prediction Engine**: A statistical model trained on a 4.2M sentence deduplicated corpus.
 
-For a deep dive into the engineering behind Lorapok, visit our [Architecture Articles](https://maijied.github.io/Keyboard/docs/architecture).
+For a deep dive into the engineering behind Lorapok, visit our [Architecture Articles](https://maijied.github.io/Lorapok-Keyboard/docs/architecture).
 
 ---
 
