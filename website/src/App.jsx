@@ -502,7 +502,7 @@ function App() {
 
 export default function Root() {
   return (
-    <Router basename="/Lorapok-Keyboard">
+    <Router>
       <App />
     </Router>
   );
