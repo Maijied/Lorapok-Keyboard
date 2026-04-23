@@ -42,12 +42,12 @@ const Navbar = () => {
   return (
     <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${scrolled ? 'glass py-3 mx-0 shadow-2xl' : 'py-6 bg-transparent'}`}>
       <div className="container flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3 group !no-underline !text-white">
+        <Link to="/" className="flex items-center gap-3 group no-underline text-white">
           <div className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform shadow-[0_0_20px_var(--primary-glow)]">
             <Keyboard className="text-black" size={24} />
           </div>
           <div className="flex flex-col">
-            <span className="text-xl font-bold tracking-tight !no-underline">LORAPOK</span>
+            <span className="text-xl font-bold tracking-tight no-underline">LORAPOK</span>
             <span className="text-[10px] font-bold text-primary tracking-[0.3em] -mt-1">INTELLIGENCE</span>
           </div>
         </Link>
@@ -58,7 +58,7 @@ const Navbar = () => {
             <Link 
               key={link.path} 
               to={link.path}
-              className={`nav-link !no-underline ${location.pathname === link.path ? 'active' : ''}`}
+              className={`nav-link no-underline ${location.pathname === link.path ? 'active' : ''}`}
             >
               {link.name}
             </Link>
