@@ -24,6 +24,15 @@ Thumbs.db
 scratch/
 artifacts/
 venv/
+# Web documentation
+website/node_modules/
+website/dist/
+.env.local
+
+# Data collection
+corpus/
 data/corpus/*.txt
 data/corpus/*.bz2
+data/corpus/*.db
 data/research_corpus/*.txt
+data/corpus/merged_corpus.txt

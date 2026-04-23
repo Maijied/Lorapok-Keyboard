@@ -1,10 +1,10 @@
 {
   "file": "data/corpus/merged_corpus.txt",
-  "file_size_bytes": 10250781,
-  "file_size_mb": 9.78,
-  "total_lines": 37111,
-  "total_tokens": 594808,
-  "total_characters": 3980190,
-  "avg_sentence_length": 16.03,
-  "vocabulary_size": 89145
+  "file_size_bytes": 1501467518,
+  "file_size_mb": 1431.91,
+  "total_lines": 4190291,
+  "total_tokens": 88171377,
+  "total_characters": 565548645,
+  "avg_sentence_length": 21.04,
+  "vocabulary_size": 2345807
 }

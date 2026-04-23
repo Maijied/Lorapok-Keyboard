@@ -108,6 +108,8 @@ Phase 6: Premium Tone Features (⏸️ FUTURE)
 | Facebook/Twitter public data | 🔨 In Progress | Via search + ROOTS dataset attempt |
 | Research baseline preserved | ✅ Done | `data/research_corpus/bengali_research_v1.txt` |
 | **Current vocabulary** | **2,345,807 unique words** | As of 2026-04-24 |
+| **Documentation Website**| ✅ **COMPLETED** | Premium React site in `website/` |
+| **CI/CD Pipeline** | ✅ **COMPLETED** | GitHub Actions auto-deploy to gh-pages |
 | **Target vocabulary** | **2,000,000+ unique words** | **EXCEEDED** |
 
 ---
@@ -289,4 +291,4 @@ LorapokKeyboardService.kt  ← Main keyboard service
 
 ---
 
-*Last updated: 2026-04-23 by AI Agent. Update this file after every significant change.*
+*Last updated: 2026-04-24 by AI Agent. Update this file after every significant change.*

@@ -175,7 +175,12 @@ HF_DATASETS = {
     "oscar": "oscar-corpus/OSCAR-2301",
     "banglabook": "csebuetnlp/banglabook",
     "mC4": "google/mc4",
-    "titulm": "hishab/titulm-bangla-corpus"
+    "titulm": "hishab/titulm-bangla-corpus",
+    "vacaspati": "Vacaspati/Vacaspati",
+    "biomed": "aksujana/BanglaBioMed_test",
+    "paraphrase": "csebuetnlp/BanglaParaphrase",
+    "regional": "Regional-TinyStories/bangla-generated_4o-mini_2M",
+    "common_voice": "mozilla-foundation/common_voice_13_0"
 }
 
 
@@ -580,27 +585,42 @@ class SampleCorpusGenerator:
 
 class HFCollector:
     """Collect Bengali text from HuggingFace datasets."""
-    def __init__(self, output_dir: str):
+    def __init__(self, output_dir: str, hf_token: str = None):
         self.output_dir = Path(output_dir)
         self.cleaner = BengaliTextCleaner()
+        self.hf_token = hf_token
 
     def collect(self, dataset_name: str, max_samples: int = 50000) -> Path:
         output_file = self.output_dir / f"hf_{dataset_name.split('/')[-1]}.txt"
         try:
             from datasets import load_dataset
             logger.info(f"Loading HF dataset: {dataset_name} (max {max_samples})")
+            
+            load_kwargs = {"split": "train", "streaming": True}
+            if self.hf_token:
+                load_kwargs["token"] = self.hf_token
+
             # Try with language config first, fall back to no config
             try:
-                dataset = load_dataset(dataset_name, 'bn', split='train', streaming=True)
+                dataset = load_dataset(dataset_name, 'bn', **load_kwargs)
             except Exception:
-                dataset = load_dataset(dataset_name, split='train', streaming=True)
+                dataset = load_dataset(dataset_name, **load_kwargs)
 
             count = 0
+            # Common text field names in NLP datasets
+            text_fields = ['text', 'content', 'sentence', 'body', 'cleaned_text', 'abstract', 'article']
+            
             with open(output_file, 'w', encoding='utf-8') as f:
                 for item in tqdm(dataset, total=max_samples, desc=f"Streaming {dataset_name.split('/')[-1]}"):
-                    text = item.get('text', '') or item.get('content', '') or item.get('sentence', '')
+                    # Find the first available text field
+                    text = ""
+                    for field in text_fields:
+                        if field in item and item[field]:
+                            text = str(item[field])
+                            break
+                    
                     if text:
-                        cleaned = self.cleaner.clean_text(str(text))
+                        cleaned = self.cleaner.clean_text(text)
                         if cleaned and self.cleaner.is_bengali_text(cleaned):
                             f.write(cleaned + '\n')
                     count += 1
@@ -1055,8 +1075,9 @@ Examples:
 
     try:
         # MC4 is a massive public dataset
-        if args.source == "mc4":
+        if args.source in ("mc4", "all"):
             mc4 = MC4Collector(output_dir)
+            # For 'all', we limit mC4 to 100k to avoid huge downloads unless max is set
             f = mc4.collect(max_samples=args.max or 100000)
             if f:
                 collected_files.append(f)
@@ -1072,12 +1093,21 @@ Examples:
         logger.error(f"News collection failed: {e}")
 
     try:
-        if args.source in ("hf", "all") and args.dataset:
-            hf = HFCollector(output_dir)
-            f = hf.collect(args.dataset, max_samples=args.max or 50000)
-            if f: collected_files.append(f)
-        elif args.source == "hf" and not args.dataset:
-            logger.error("--source hf requires --dataset NAME")
+        if args.source in ("hf", "all"):
+            hf = HFCollector(output_dir, hf_token=args.hf_token)
+            # For 'all', collect from high-priority research datasets
+            hf_targets = [args.dataset] if args.dataset else [
+                HF_DATASETS["vacaspati"],
+                HF_DATASETS["biomed"],
+                HF_DATASETS["emotion"] if "emotion" in HF_DATASETS else "Bangla-NLP/Bangla_Emotion_Dataset",
+                HF_DATASETS["regional"]
+            ]
+            
+            for ds_name in hf_targets:
+                if not ds_name: continue
+                logger.info(f"Collecting research dataset: {ds_name}")
+                f = hf.collect(ds_name, max_samples=args.max or 50000)
+                if f: collected_files.append(f)
     except Exception as e:
         logger.error(f"HF collection failed: {e}")
 
