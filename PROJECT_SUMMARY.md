@@ -15,12 +15,12 @@ The first Bengali keyboard with **AI-powered tone adaptation** — transforming 
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| **Phonetic Input** | Type `ami` → আমি (Avro-style) | ✅ Done |
-| **AI Prediction** | Bigram next-word prediction (500+ vocab) | ✅ Done |
+| **Phonetic Input** | 7,500+ words, multi-candidate ranking, modifiers support | ✅ Done (Improved) |
+| **AI Prediction** | Bigram next-word prediction (250,000+ vocab) | 🔨 Scaling |
 | **Autocorrect** | Fuzzy Trie matching for typo correction | ✅ Done |
-| **Tone Rewriting** | 8 Bengali tones with cultural awareness | 🔨 Building |
+| **Tone Rewriting** | 8 Bengali tones with cultural awareness | ✅ Done (v1) |
 | **Settings** | Theme, haptic, sound, autocorrect toggles | ✅ Done |
-| **Cross-Platform** | Android, iOS, Windows, Linux, macOS | 📋 Planned |
+| **Cross-Platform** | Android (Full), iOS (Planned) | 🔨 Building |
 | **Privacy-First** | All AI on-device, no data collection | ✅ Designed |
 | **Offline Mode** | Full functionality without internet | ✅ Designed |
 

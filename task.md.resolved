@@ -1,0 +1,28 @@
+# Lorapok Keyboard — Phase 2: Advanced Intelligence
+
+## 1. Advanced Tone Rewriting (Android)
+- [x] Port `BengaliToneRules` to `ToneRewriter.kt`
+- [x] Implement full pronoun/verb/word formality mapping
+- [x] Implement "Concise" tone (filler word removal)
+- [x] Implement "Detailed" tone (elaboration)
+- [x] Implement "Respectful" tone (honorifics)
+- [x] Premium tone placeholders (Poetic, Humorous, Empathetic)
+
+## 2. iOS Feature Parity (DEFERRED)
+- [ ] Port Advanced Tone Rewriter to Swift
+- [ ] Add Settings button & logic (Theme, Haptic, Sound)
+- [ ] Implement Bengali numbers in symbol layout
+- [ ] Sync period/comma button sizes with Android
+- [ ] Implement Symbols layout logic
+
+## 3. AI Data Foundation (Android)
+- [x] Run `scripts/collect_bengali_data.py` to start corpus collection
+- [x] Verify data quality in `data/corpus/`
+- [x] Generate Bigram Model (`bigram_model.json`)
+- [/] Integrate `bigram_model.json` into Android app
+- [/] Setup training pipeline for Bi-LSTM model (Week 10+)
+
+## 4. Verification
+- [ ] Test "Casual → Respectful" transformations on Android
+- [ ] Verify iOS keyboard extension feature parity
+- [ ] Benchmarking (Latency < 50ms for tone rewriting)

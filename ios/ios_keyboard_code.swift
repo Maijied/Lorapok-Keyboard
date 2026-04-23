@@ -5,6 +5,11 @@ import UIKit
 // Features: Phonetic conversion, AI prediction, language switching, tone rewriting
 // Min iOS: 13.0 | Memory: <48 MB
 
+enum KeyboardState {
+    case qwerty
+    case symbols
+}
+
 class KeyboardViewController: UIInputViewController {
 
     // MARK: - Properties
@@ -14,19 +19,30 @@ class KeyboardViewController: UIInputViewController {
 
     private var isBengaliMode = true
     private var isShiftActive = false
+    private var currentState: KeyboardState = .qwerty
     private var phoneticBuffer = ""
     private var suggestionButtons: [UIButton] = []
 
-    private let keyboardBackground = UIColor(red: 0.957, green: 0.957, blue: 0.957, alpha: 1.0) // #F4F4F4
+    // Settings (from UserDefaults)
+    private var hapticEnabled: Bool { UserDefaults.standard.object(forKey: "kbd_haptic") as? Bool ?? true }
+    private var soundEnabled: Bool { UserDefaults.standard.object(forKey: "kbd_sound") as? Bool ?? true }
+
+    private let keyboardBackground = UIColor(red: 0.957, green: 0.957, blue: 0.957, alpha: 1.0)
     private let keyColor = UIColor.white
-    private let specialKeyColor = UIColor(red: 0.373, green: 0.388, blue: 0.404, alpha: 1.0) // #5F6368
-    private let accentColor = UIColor(red: 0.102, green: 0.451, blue: 0.910, alpha: 1.0) // #1A73E8
-    private let textColor = UIColor(red: 0.122, green: 0.122, blue: 0.122, alpha: 1.0) // #1F1F1F
+    private let specialKeyColor = UIColor(red: 0.373, green: 0.388, blue: 0.404, alpha: 1.0)
+    private let accentColor = UIColor(red: 0.102, green: 0.451, blue: 0.910, alpha: 1.0)
+    private let textColor = UIColor(red: 0.122, green: 0.122, blue: 0.122, alpha: 1.0)
 
     private let qwertyRows: [[String]] = [
         ["q","w","e","r","t","y","u","i","o","p"],
         ["a","s","d","f","g","h","j","k","l"],
         ["z","x","c","v","b","n","m"]
+    ]
+
+    private let symbolRows: [[String]] = [
+        ["1","2","3","4","5","6","7","8","9","0"],
+        ["-","/",":",";","(",")","$","&","@","\""],
+        [".",",","?","!","'"]
     ]
 
     // MARK: - Lifecycle
@@ -75,8 +91,10 @@ class KeyboardViewController: UIInputViewController {
         let suggestionRow = createSuggestionBar()
         stackView.addArrangedSubview(suggestionRow)
 
-        // QWERTY rows
-        for (index, row) in qwertyRows.enumerated() {
+        // Row content based on state
+        let activeRows = (currentState == .qwerty) ? qwertyRows : symbolRows
+        
+        for (index, row) in activeRows.enumerated() {
             let rowStack = createKeyRow(keys: row, rowIndex: index)
             stackView.addArrangedSubview(rowStack)
         }
@@ -192,7 +210,7 @@ class KeyboardViewController: UIInputViewController {
         stack.spacing = 4
         stack.heightAnchor.constraint(equalToConstant: 48).isActive = true
 
-        let numBtn = createSpecialKey(title: "123") { /* TODO: number layout */ }
+        let numBtn = createSpecialKey(title: "123") { [weak self] in self?.toggleSymbols() }
         numBtn.widthAnchor.constraint(equalToConstant: 44).isActive = true
         stack.addArrangedSubview(numBtn)
 
@@ -205,12 +223,16 @@ class KeyboardViewController: UIInputViewController {
         stack.addArrangedSubview(commaBtn)
 
         let spaceBtn = UIButton(type: .system)
-        spaceBtn.setTitle(isBengaliMode ? "বাংলা" : "English", for: .normal)
+        spaceBtn.setTitle(isBengaliMode ? "🌐 বাংলা" : "🌐 English", for: .normal)
         spaceBtn.titleLabel?.font = UIFont.systemFont(ofSize: 14)
         spaceBtn.setTitleColor(textColor, for: .normal)
         spaceBtn.backgroundColor = keyColor
         spaceBtn.layer.cornerRadius = 6
         spaceBtn.addTarget(self, action: #selector(spaceTapped), for: .touchUpInside)
+        
+        let longPress = UILongPressGestureRecognizer(target: self, action: #selector(handleSpaceLongPress(_:)))
+        spaceBtn.addGestureRecognizer(longPress)
+        
         stack.addArrangedSubview(spaceBtn)
 
         let periodLabel = isBengaliMode ? "।" : "."
@@ -218,13 +240,17 @@ class KeyboardViewController: UIInputViewController {
         periodBtn.widthAnchor.constraint(equalToConstant: 40).isActive = true
         stack.addArrangedSubview(periodBtn)
 
-        let emojiBtn = createSpecialKey(title: "😊") { /* TODO: emoji */ }
-        emojiBtn.widthAnchor.constraint(equalToConstant: 40).isActive = true
-        stack.addArrangedSubview(emojiBtn)
-
-        let toneBtn = createSpecialKey(title: "✨") { /* TODO: tone rewriter */ }
+        let toneBtn = createSpecialKey(title: "✨") { [weak self] in self?.handleToneRewrite() }
         toneBtn.widthAnchor.constraint(equalToConstant: 40).isActive = true
         stack.addArrangedSubview(toneBtn)
+
+        let gearBtn = createSpecialKey(title: "⚙") { [weak self] in self?.openSettings() }
+        gearBtn.widthAnchor.constraint(equalToConstant: 40).isActive = true
+        stack.addArrangedSubview(gearBtn)
+
+        let retBtn = createSpecialKey(title: "↵") { [weak self] in self?.handleReturn() }
+        retBtn.widthAnchor.constraint(equalToConstant: 50).isActive = true
+        stack.addArrangedSubview(retBtn)
 
         return stack
     }
@@ -262,7 +288,15 @@ class KeyboardViewController: UIInputViewController {
 
     @objc private func keyTapped(_ sender: UIButton) {
         hapticFeedback()
+        playClickSound()
         guard let title = sender.title(for: .normal) else { return }
+        
+        if currentState == .symbols {
+            let commitStr = isBengaliMode ? convertToBengaliNumber(title) : title
+            textDocumentProxy.insertText(commitStr)
+            return
+        }
+
         let char = isShiftActive ? title.uppercased() : title.lowercased()
 
         if isBengaliMode {
@@ -288,7 +322,10 @@ class KeyboardViewController: UIInputViewController {
             phoneticBuffer = ""
         }
 
-        if isShiftActive { isShiftActive = false }
+        if isShiftActive {
+            isShiftActive = false
+            setupKeyboard()
+        }
     }
 
     @objc private func spaceTapped() {
@@ -334,9 +371,57 @@ class KeyboardViewController: UIInputViewController {
         setupKeyboard()
     }
 
+    private func handleToneRewrite() {
+        hapticFeedback()
+        let text = textDocumentProxy.documentContextBeforeInput ?? ""
+        if !text.isEmpty {
+            // Trigger ToneRewriter (placeholder for actual view presentation)
+            print("Tone Rewrite triggered for: \(text)")
+        }
+    }
+
+    private func openSettings() {
+        hapticFeedback()
+        // iOS doesn't allow opening the main app easily from keyboard extension 
+        // unless using a custom URL scheme.
+        print("Settings triggered")
+    }
+
+    @objc private func handleSpaceLongPress(_ gesture: UILongPressGestureRecognizer) {
+        if gesture.state == .began {
+            toggleLanguage()
+        }
+    }
+
+    private func toggleSymbols() {
+        hapticFeedback()
+        currentState = (currentState == .qwerty) ? .symbols : .qwerty
+        setupKeyboard()
+    }
+
+    private func convertToBengaliNumber(_ input: String) -> String {
+        return input
+            .replacingOccurrences(of: "0", with: "০")
+            .replacingOccurrences(of: "1", with: "১")
+            .replacingOccurrences(of: "2", with: "২")
+            .replacingOccurrences(of: "3", with: "৩")
+            .replacingOccurrences(of: "4", with: "৪")
+            .replacingOccurrences(of: "5", with: "৫")
+            .replacingOccurrences(of: "6", with: "৬")
+            .replacingOccurrences(of: "7", with: "৭")
+            .replacingOccurrences(of: "8", with: "৮")
+            .replacingOccurrences(of: "9", with: "৯")
+    }
+
     private func hapticFeedback() {
+        guard hapticEnabled else { return }
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
+    }
+
+    private func playClickSound() {
+        guard soundEnabled else { return }
+        // AudioServicesPlaySystemSound(1104) // Tick sound
     }
 }
 
@@ -389,25 +474,27 @@ class PhoneticEngine {
     }
 
     private func loadDefaultRules() {
-        // Minimal defaults if JSON not found
         commonWords = [
-            "ami": "আমি", "tumi": "তুমি", "apni": "আপনি",
-            "bhalo": "ভালো", "achi": "আছি", "kemon": "কেমন",
-            "bangladesh": "বাংলাদেশ", "dhaka": "ঢাকা",
-            "dhonnobad": "ধন্যবাদ", "shagotom": "স্বাগতম"
+            "ami": "আমি", "tumi": "তুমি", "apni": "আপনি", "tui": "তুই",
+            "bhalo": "ভালো", "achi": "আছি", "kemon": "কেমন", "ki": "কি",
+            "bangladesh": "বাংলাদেশ", "dhaka": "ঢাকা", "na": "না", "ha": "হ্যাঁ",
+            "dhonnobad": "ধন্যবাদ", "shagotom": "স্বাগতম", "ekhon": "এখন",
+            "khub": "খুব", "shob": "সব", "kaj": "কাজ", "aj": "আজ",
+            "kalke": "কাল", "baba": "বাবা", "ma": "মা", "bon": "বোন"
         ]
         consonants = [
             "k": "ক", "kh": "খ", "g": "গ", "gh": "ঘ",
             "c": "চ", "ch": "ছ", "j": "জ", "jh": "ঝ",
+            "T": "ট", "Th": "ঠ", "D": "ড", "Dh": "ঢ",
             "t": "ত", "th": "থ", "d": "দ", "dh": "ধ",
             "n": "ন", "p": "প", "ph": "ফ", "f": "ফ",
-            "b": "ব", "bh": "ভ", "m": "ম", "r": "র",
-            "l": "ল", "sh": "শ", "s": "স", "h": "হ",
-            "ng": "ং", "y": "য়"
+            "b": "ব", "bh": "ভ", "m": "ম", "z": "য", "r": "র",
+            "l": "ল", "sh": "শ", "S": "ষ", "s": "স", "h": "হ",
+            "R": "ড়", "Rh": "ঢ়", "y": "য়", "ng": "ং", "H": "ঃ"
         ]
         vowels = [
-            "a": "অ", "aa": "আ", "i": "ই", "ii": "ঈ",
-            "u": "উ", "uu": "ঊ", "e": "এ", "o": "ও",
+            "a": "অ", "aa": "আ", "A": "আ", "i": "ই", "I": "ঈ",
+            "u": "উ", "U": "ঊ", "e": "এ", "o": "ও", "O": "ও",
             "oi": "ঐ", "ou": "ঔ"
         ]
 
@@ -514,5 +601,42 @@ class UserLearningSystem {
         if let saved = UserDefaults.standard.dictionary(forKey: userDefaultsKey) as? [String: Int] {
             wordCounts = saved
         }
+    }
+}
+
+// MARK: - Tone Rewriting Engine (Swift)
+
+enum ToneType: String, CaseIterable {
+    case formal, friendly, respectful, concise, detailed, poetic, humorous, empathetic
+    
+    var displayName: String {
+        switch self {
+        case .formal: return "🎩 আনুষ্ঠানিক"
+        case .friendly: return "😊 বন্ধুত্বপূর্ণ"
+        case .respectful: return "🙏 শ্রদ্ধাশীল"
+        case .concise: return "⚡ সংক্ষিপ্ত"
+        case .detailed: return "📝 বিস্তারিত"
+        case .poetic: return "📚 কাব্যিক"
+        case .humorous: return "😄 হাস্যরসাত্মক"
+        case .empathetic: return "💝 সহানুভূতিশীল"
+        }
+    }
+}
+
+class ToneRewritingEngine {
+    func rewrite(text: String, targetTone: ToneType) -> String {
+        // Implementation logic (rules-based)
+        var result = text
+        switch targetTone {
+        case .formal:
+            result = result.replacingOccurrences(of: "তুমি", with: "আপনি")
+            result = result.replacingOccurrences(of: "করো", with: "করুন")
+        case .friendly:
+            result += " 😊"
+        case .respectful:
+            result = "শ্রদ্ধেয়, " + result.replacingOccurrences(of: "তুমি", with: "আপনি")
+        default: break
+        }
+        return result
     }
 }

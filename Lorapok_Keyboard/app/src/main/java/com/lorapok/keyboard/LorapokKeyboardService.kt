@@ -90,7 +90,7 @@ class LorapokKeyboardService : InputMethodService() {
         phoneticEngine = PhoneticEngine(this).apply {
             autocorrectEnabled = this@LorapokKeyboardService.autocorrectEnabled
         }
-        predictionEngine = PredictionEngine()
+        predictionEngine = PredictionEngine(this)
         englishPredictionEngine = EnglishPredictionEngine(this)
         userLearning = UserLearningSystem(this)
         toneRewriter = ToneRewriter(this).apply {
@@ -127,8 +127,11 @@ class LorapokKeyboardService : InputMethodService() {
 
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
         super.onStartInput(info, restarting)
+        loadPreferences()
+        phoneticEngine.autocorrectEnabled = autocorrectEnabled
         phoneticBuffer.clear()
         currentState = KeyboardState.QWERTY
+        showDefaultSuggestions()
     }
 
     private fun buildKeyboard() {
@@ -249,7 +252,7 @@ class LorapokKeyboardService : InputMethodService() {
                     width = dp(50)
                     height = dp(50)
                 }
-                setOnClickListener { haptic(); commitText(emoji) }
+                setOnClickListener { feedback(); commitText(emoji) }
             }
             grid.addView(btn)
         }
@@ -282,13 +285,14 @@ class LorapokKeyboardService : InputMethodService() {
             buildKeyboard()
         })
         
-        bottomRow.addView(makeSpecialKey(",", 1f) { haptic(); commitText(",") })
+        bottomRow.addView(makeSpecialKey(",", 1f) { feedback(); commitText(",") })
         bottomRow.addView(makeSpaceKey(3f))
         
         val periodLabel = if (isBengaliMode) "।" else "."
-        bottomRow.addView(makeSpecialKey(periodLabel, 1f) { haptic(); commitText(periodLabel) })
-        bottomRow.addView(makeSpecialKey("↵", 1.2f) { handleEnter() })
-        bottomRow.addView(makeSpecialKey("⚙", 0.8f) { openSettings() })
+        bottomRow.addView(makeSpecialKey(periodLabel, 1f) { feedback(); commitText(periodLabel) })
+        bottomRow.addView(makeSpecialKey("↵", 1.2f) { feedback(); handleEnter() })
+        bottomRow.addView(makeSpecialKey("✨", 0.8f) { handleToneRewrite() })
+        bottomRow.addView(makeSpecialKey("⚙", 0.8f) { feedback(); openSettings() })
         
         rootLayout.addView(bottomRow)
     }
@@ -306,7 +310,7 @@ class LorapokKeyboardService : InputMethodService() {
             layoutParams = LinearLayout.LayoutParams(0, dp(58), weight).apply {
                 setMargins(dp(3), dp(2), dp(3), dp(2))
             }
-            setOnClickListener { haptic(); handleCharInput(label) }
+            setOnClickListener { feedback(); handleCharInput(label) }
         }
     }
 
@@ -337,7 +341,7 @@ class LorapokKeyboardService : InputMethodService() {
                 setOnTouchListener { v, event ->
                     when (event.action) {
                         android.view.MotionEvent.ACTION_DOWN -> {
-                            haptic()
+                            feedback()
                             action()
                             isDeleting = true
                             handler.postDelayed(deleteRunnable, 400)
@@ -354,7 +358,7 @@ class LorapokKeyboardService : InputMethodService() {
                     }
                 }
             } else {
-                setOnClickListener { haptic(); action() }
+                setOnClickListener { feedback(); action() }
             }
         }
     }
@@ -372,8 +376,8 @@ class LorapokKeyboardService : InputMethodService() {
             layoutParams = LinearLayout.LayoutParams(0, dp(58), weight).apply {
                 setMargins(dp(3), dp(2), dp(3), dp(2))
             }
-            setOnClickListener { haptic(); handleSpace() }
-            setOnLongClickListener { haptic(); toggleLanguage(); true }
+            setOnClickListener { feedback(); handleSpace() }
+            setOnLongClickListener { feedback(); toggleLanguage(); true }
         }
     }
 
@@ -444,7 +448,6 @@ class LorapokKeyboardService : InputMethodService() {
         } else {
             ic.commitText(char, 1)
         }
-        playClickSound()
         if (isShiftActive) { isShiftActive = false; buildKeyboard() }
     }
 
@@ -562,7 +565,7 @@ class LorapokKeyboardService : InputMethodService() {
                 gravity = Gravity.CENTER
                 setPadding(dp(12), 0, dp(12), 0)
                 layoutParams = LinearLayout.LayoutParams(0, -1, 1f)
-                setOnClickListener { haptic(); applySuggestion(word) }
+                setOnClickListener { feedback(); applySuggestion(word) }
             }
             suggestionBar.addView(tv)
         }
@@ -627,6 +630,11 @@ class LorapokKeyboardService : InputMethodService() {
     
     private fun toggleShift() { isShiftActive = !isShiftActive; buildKeyboard() }
 
+    private fun feedback() {
+        haptic()
+        playClickSound()
+    }
+
     private fun haptic() {
         if (!hapticEnabled) return
         vibrator?.let { v ->
@@ -636,16 +644,10 @@ class LorapokKeyboardService : InputMethodService() {
         }
     }
 
-    private fun handleToneRewrite() {
-        val ic = currentInputConnection ?: return
-        val extracted = ic.getTextBeforeCursor(100, 0)
-        if (!extracted.isNullOrEmpty()) toneRewriter.show(extracted.toString())
-    }
-
-    private fun openSettings() {
-        val intent = Intent(this, SettingsActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(intent)
+    private fun playClickSound() {
+        if (!soundEnabled) return
+        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        am.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD)
     }
 
     private fun dp(value: Int): Int = TypedValue.applyDimension(

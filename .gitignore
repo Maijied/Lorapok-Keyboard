@@ -23,3 +23,7 @@ Thumbs.db
 *.log
 scratch/
 artifacts/
+venv/
+data/corpus/*.txt
+data/corpus/*.bz2
+data/research_corpus/*.txt

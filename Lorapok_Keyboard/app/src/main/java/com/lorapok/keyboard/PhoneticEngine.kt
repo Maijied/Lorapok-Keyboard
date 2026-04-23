@@ -48,7 +48,7 @@ class PhoneticEngine(context: Context) {
                 val latin = keys.next()
                 val bengaliObj = json.getJSONObject(latin)
                 val bengaliKeys = bengaliObj.keys()
-                if (bengaliKeys.hasNext()) {
+                while (bengaliKeys.hasNext()) {
                     val bengaliWord = bengaliKeys.next()
                     val freq = bengaliObj.getInt(bengaliWord)
                     dictionaryTrie.insert(latin.lowercase(), bengaliWord, freq)
@@ -59,40 +59,47 @@ class PhoneticEngine(context: Context) {
 
     /**
      * Convert Latin input to Bengali, returning a list of candidates (Gboard style).
-     * Pipeline: Dictionary exact → Transliteration → Fuzzy autocorrect → Prefix predictions
      */
     fun convert(input: String): List<String> {
         val lower = input.lowercase()
-        val candidates = mutableSetOf<String>()
+        val candidates = mutableListOf<String>()
 
-        // 1. Lexicon Dictionary exact match (highest priority)
-        val exactMatch = dictionaryTrie.search(lower)
-        if (exactMatch != null) {
-            candidates.add(exactMatch as String)
+        // 1. Lexicon Dictionary matches (highest priority)
+        val dictMatches = dictionaryTrie.search(lower)
+        for (match in dictMatches) {
+            candidates.add(match.first)
         }
 
         // 2. Generate transliterations
         val gboardStyle = generateTransliteration(lower, treatSingleAAsAa = true)
-        if (gboardStyle.isNotEmpty()) candidates.add(gboardStyle)
+        if (gboardStyle.isNotEmpty() && !candidates.contains(gboardStyle)) {
+            candidates.add(gboardStyle)
+        }
 
         val strictAvro = generateTransliteration(lower, treatSingleAAsAa = false)
-        if (strictAvro.isNotEmpty()) candidates.add(strictAvro)
+        if (strictAvro.isNotEmpty() && !candidates.contains(strictAvro)) {
+            candidates.add(strictAvro)
+        }
 
-        // 3. Fuzzy autocorrect: if no exact dictionary match, suggest close matches
-        if (exactMatch == null && autocorrectEnabled && lower.length >= 3) {
-            val fuzzyMatches = dictionaryTrie.fuzzySearch(lower, maxDistance = 1, limit = 2)
-            for (match in fuzzyMatches) {
-                candidates.add(match.second as String)
+        // 3. Autocomplete prefix predictions (if dictionary matches are few)
+        if (candidates.size < 5) {
+            val prefixMatches = dictionaryTrie.autocomplete(lower, 5)
+            for (match in prefixMatches) {
+                if (!candidates.contains(match.first)) {
+                    candidates.add(match.first)
+                }
             }
         }
 
-        // 4. Add autocomplete prefix predictions if typing is incomplete
-        val dictMatches = dictionaryTrie.autocomplete(lower, 3)
-        for (match in dictMatches) {
-            candidates.add(match.second as String)
+        // 4. Fuzzy autocorrect: if no candidates yet, suggest close matches
+        if (candidates.isEmpty() && autocorrectEnabled && lower.length >= 3) {
+            val fuzzyMatches = dictionaryTrie.fuzzySearch(lower, maxDistance = 1, limit = 3)
+            for (match in fuzzyMatches) {
+                candidates.add(match.first)
+            }
         }
 
-        return candidates.toList()
+        return candidates.distinct()
     }
 
     /** Toggle autocorrect on/off (controlled by settings) */
@@ -121,6 +128,27 @@ class PhoneticEngine(context: Context) {
 
             // Try consonants
             val remaining = lower.substring(i)
+            
+            // Explicit Modifiers
+            if (remaining.startsWith("^")) {
+                result.append("ঁ")
+                i += 1
+                lastWasConsonant = false
+                continue
+            }
+            if (remaining.startsWith(",,")) {
+                result.append("্")
+                i += 2
+                lastWasConsonant = false
+                continue
+            }
+            if (remaining.startsWith(":")) {
+                result.append("ঃ")
+                i += 1
+                lastWasConsonant = false
+                continue
+            }
+
             val consonantMatch = consonants.keys.filter { remaining.startsWith(it) }
                 .maxByOrNull { it.length }
             

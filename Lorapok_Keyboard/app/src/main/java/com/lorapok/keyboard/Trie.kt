@@ -3,8 +3,7 @@ package com.lorapok.keyboard
 class TrieNode {
     val children = mutableMapOf<Char, TrieNode>()
     var isWord = false
-    var wordData: Any? = null
-    var freq = 0
+    var wordDataMap: MutableMap<String, Int> = mutableMapOf() // BengaliWord -> Frequency
     var maxFreq = 0
 }
 
@@ -14,58 +13,57 @@ class TrieNode {
 class Trie {
     private val root = TrieNode()
 
-    fun insert(word: String, data: Any, freq: Int) {
+    fun insert(latinKey: String, bengaliWord: String, freq: Int) {
         var node = root
-        for (char in word) {
+        for (char in latinKey) {
             node = node.children.getOrPut(char) { TrieNode() }
             if (freq > node.maxFreq) node.maxFreq = freq
         }
         node.isWord = true
-        node.wordData = data
-        node.freq = freq
+        node.wordDataMap[bengaliWord] = freq
     }
 
     /**
-     * Returns exact match data or null.
+     * Returns a list of candidates (BengaliWord to Freq) for a given latin key.
      */
-    fun search(word: String): Any? {
+    fun search(word: String): List<Pair<String, Int>> {
         var node = root
         for (char in word) {
-            node = node.children[char] ?: return null
+            node = node.children[char] ?: return emptyList()
         }
-        return if (node.isWord) node.wordData else null
+        return if (node.isWord) {
+            node.wordDataMap.toList().sortedByDescending { it.second }
+        } else emptyList()
     }
 
     /**
      * Returns up to [limit] matches starting with [prefix], sorted by frequency (highest first).
      */
-    fun autocomplete(prefix: String, limit: Int = 5): List<Pair<String, Any>> {
+    fun autocomplete(prefix: String, limit: Int = 5): List<Pair<String, Int>> {
         var node = root
         for (char in prefix) {
             node = node.children[char] ?: return emptyList()
         }
 
-        val results = mutableListOf<Triple<String, Any, Int>>()
-        collectWords(node, prefix, results)
+        val results = mutableListOf<Pair<String, Int>>()
+        collectWords(node, results)
 
         return results
-            .sortedByDescending { it.third }
+            .sortedByDescending { it.second }
             .take(limit)
-            .map { it.first to it.second }
     }
 
     /**
      * Fuzzy search: returns words within [maxDistance] Levenshtein edit distance of [target].
      * Used for autocorrect — finds close matches when exact match fails.
      */
-    fun fuzzySearch(target: String, maxDistance: Int = 1, limit: Int = 3): List<Pair<String, Any>> {
-        val results = mutableListOf<Triple<String, Any, Int>>()
+    fun fuzzySearch(target: String, maxDistance: Int = 1, limit: Int = 3): List<Pair<String, Int>> {
+        val results = mutableListOf<Pair<String, Int>>()
         fuzzyDFS(root, "", target, maxDistance, results)
 
         return results
-            .sortedByDescending { it.third }
+            .sortedByDescending { it.second }
             .take(limit)
-            .map { it.first to it.second }
     }
 
     private fun fuzzyDFS(
@@ -73,16 +71,17 @@ class Trie {
         currentWord: String,
         target: String,
         maxDistance: Int,
-        results: MutableList<Triple<String, Any, Int>>
+        results: MutableList<Pair<String, Int>>
     ) {
         if (node.isWord) {
             val dist = levenshtein(currentWord, target)
             if (dist in 1..maxDistance) {
-                results.add(Triple(currentWord, node.wordData!!, node.freq))
+                for ((word, freq) in node.wordDataMap) {
+                    results.add(Pair(word, freq))
+                }
             }
         }
 
-        // Prune: if current word is already much longer than target + maxDistance, stop
         if (currentWord.length > target.length + maxDistance) return
 
         for ((char, childNode) in node.children) {
@@ -90,13 +89,14 @@ class Trie {
         }
     }
 
-    private fun collectWords(node: TrieNode, currentPrefix: String, results: MutableList<Triple<String, Any, Int>>) {
+    private fun collectWords(node: TrieNode, results: MutableList<Pair<String, Int>>) {
         if (node.isWord) {
-            results.add(Triple(currentPrefix, node.wordData!!, node.freq))
+            for ((word, freq) in node.wordDataMap) {
+                results.add(Pair(word, freq))
+            }
         }
-        // Traverse children sorted by maxFreq for better early results
-        for ((char, childNode) in node.children.entries.sortedByDescending { it.value.maxFreq }) {
-            collectWords(childNode, currentPrefix + char, results)
+        for ((_, childNode) in node.children.entries.sortedByDescending { it.value.maxFreq }) {
+            collectWords(childNode, results)
         }
     }
 
