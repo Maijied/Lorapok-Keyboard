@@ -5,6 +5,8 @@ on:
     branches: [ main, master ]
     paths:
       - 'website/**'
+      - 'AI_TRAINING_PROGRESS.md'
+      - 'README.md'
   workflow_dispatch:
 
 permissions:
